@@ -389,6 +389,101 @@
   footer.export-bar button{padding:12px 14px;}
   footer.export-bar .btn-block{flex:1 1 auto; min-width:140px;}
   .hidden{display:none !important;}
+
+  .signin-card p{
+    font-size:14px;
+    line-height:1.5;
+    margin:0 0 12px;
+  }
+  .signin-card ol{
+    margin:0 0 16px;
+    padding-left:20px;
+    font-size:14px;
+    line-height:1.6;
+  }
+  .signin-card ol li{margin-bottom:4px;}
+  details.script-details{
+    margin-bottom:16px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:10px 12px;
+  }
+  details.script-details summary{
+    cursor:pointer;
+    font-size:13px;
+    font-weight:600;
+    color:var(--rust);
+    outline:none;
+  }
+  .script-box{
+    margin:10px 0 0;
+    max-height:260px;
+    overflow:auto;
+    background:#1E1B15;
+    color:#E8E1CE;
+    font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+    font-size:11px;
+    line-height:1.5;
+    padding:12px;
+    border-radius:4px;
+    white-space:pre;
+  }
+  .connected-bar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12px;
+    color:#6B6558;
+    margin-bottom:14px;
+  }
+  .connected-bar .btn-ghost{
+    padding:4px 9px;
+    font-size:11px;
+    color:#6B6558;
+    border-color:var(--line);
+  }
+  .url-warning{
+    font-size:12px;
+    line-height:1.5;
+    color:#6B4A2E;
+    background:#F7EEDD;
+    border-left:3px solid var(--gold);
+    padding:8px 10px;
+    border-radius:0 4px 4px 0;
+    margin:0 0 14px;
+  }
+  .offline-divider{
+    text-align:center;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:#9C9686;
+    margin:18px 0 10px;
+  }
+  .offline-note{
+    font-size:12px;
+    line-height:1.5;
+    color:#6B6558;
+    margin:10px 0 0;
+  }
+  .offline-bar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12px;
+    color:#8A5A3B;
+    background:#F7EEDD;
+    border:1px solid var(--gold);
+    border-radius:5px;
+    padding:8px 10px;
+    margin-bottom:14px;
+  }
+  .offline-bar .btn-ghost{
+    padding:4px 9px;
+    font-size:11px;
+    color:#6B4A2E;
+    border-color:var(--gold);
+  }
 </style>
 </head>
 <body>
@@ -399,6 +494,42 @@
 </header>
 
 <main>
+
+  <section class="card signin-card" id="setup-card">
+    <h2 class="section-title">Connect your library</h2>
+    <p>Book Nook keeps your list in a Google Sheet you control — nothing is stored on a server of ours. Set one up once (a couple of minutes), then paste its Web App URL below.</p>
+    <ol>
+      <li>Create a blank Google Sheet.</li>
+      <li>Extensions → Apps Script, delete the starter code, and paste in the script below.</li>
+      <li>Deploy → New deployment → type "Web app" → Execute as <strong>Me</strong>, access <strong>Anyone with the link</strong> → Deploy.</li>
+      <li>Copy the Web App URL it gives you and paste it in below.</li>
+    </ol>
+
+    <details class="script-details">
+      <summary>View / copy the Apps Script code</summary>
+      <button type="button" id="copy-script" class="btn-secondary" style="margin-top:10px;">Copy script to clipboard</button>
+      <pre class="script-box" id="script-box"></pre>
+    </details>
+
+    <div class="field">
+      <label for="sheet-url-input">Your Web App URL</label>
+      <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/…/exec">
+    </div>
+    <p class="url-warning">Treat this URL like a password — anyone who has it can view, edit, and delete this library, with no login. Only share it with people you'd trust with that.</p>
+    <button type="button" id="save-sheet-url" class="btn-primary btn-block">Connect</button>
+    <div class="status-line" id="setup-status"></div>
+
+    <div class="offline-divider">or</div>
+    <button type="button" id="continue-offline" class="btn-secondary btn-block">Continue without connecting</button>
+    <p class="offline-note">Nothing is saved anywhere in this mode — your list only exists in this tab until you tap <strong>Export CSV for Notion</strong>. Closing the tab without exporting loses it.</p>
+  </section>
+
+  <div id="app-content" class="hidden">
+
+  <div class="connected-bar" id="status-bar">
+    <span id="status-bar-text">Connected to your shared library</span>
+    <button type="button" id="change-library-link" class="btn-ghost">Change</button>
+  </div>
 
   <section class="card scan-card">
     <div id="video-wrap">
@@ -570,14 +701,16 @@
   </section>
 
   <section class="card">
-    <h2 class="section-title">Your books <span class="count" id="book-count">0</span></h2>
+    <h2 class="section-title">Your books <span><button type="button" id="refresh-books" class="btn-ghost" style="padding:3px 8px; font-size:11px; text-transform:none; letter-spacing:normal; color:#6B6558; border-color:var(--line);">↻ Refresh</button> <span class="count" id="book-count">0</span></span></h2>
     <div id="book-list"></div>
     <div class="empty-state" id="empty-state">No books yet — scan one to get started.</div>
   </section>
 
+  </div>
+
 </main>
 
-<footer class="export-bar">
+<footer class="export-bar hidden" id="app-footer">
   <button id="export-csv" class="btn-secondary btn-block">Export CSV for Notion</button>
   <button id="import-csv" class="btn-secondary">Import CSV</button>
   <input type="file" id="import-file" accept=".csv,text/csv" class="hidden">
@@ -589,8 +722,275 @@
 (function(){
   "use strict";
 
-  const STORAGE_KEY = 'book-nook-list';
-  let books = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  // ---- Shared library via Google Apps Script Web App backed by a Google Sheet ----
+  // Paste the Web App URL from your Apps Script deployment here.
+  // ---- Shared library via Google Apps Script Web App backed by a Google Sheet ----
+  const SHEET_URL_KEY = 'book-nook-sheet-url';
+  let SHEET_API_URL = localStorage.getItem(SHEET_URL_KEY) || '';
+
+  // Embedded so anyone opening this page can copy the backend script straight
+  // from the Connect screen without needing a separate file.
+  const APPS_SCRIPT_SOURCE = `/**
+ * Book Nook — Apps Script backend
+ *
+ * SETUP
+ * 1. Create a Google Sheet (any name). Open Extensions → Apps Script.
+ * 2. Delete any starter code in the editor and paste in this whole file.
+ * 3. Click Deploy → New deployment → type "Web app".
+ *      - Execute as: Me
+ *      - Who has access: Anyone with the link
+ * 4. Deploy, then copy the Web App URL it gives you.
+ * 5. Paste that URL into SHEET_API_URL near the top of index.html's <script>.
+ *
+ * SECURITY NOTE: this URL is the only thing standing between anyone and
+ * full read/write/delete access to this Sheet — there is no login. Treat
+ * it like a password: don't post it publicly, and only share it with
+ * people you'd trust with full access to this library.
+ *
+ * The sheet tab itself is created automatically the first time this
+ * script runs, and new columns are added automatically whenever
+ * index.html sends a field name the sheet doesn't have yet — you never
+ * need to edit the spreadsheet by hand to keep it in sync.
+ */
+
+const SHEET_NAME = 'Books';
+const LOCK_TIMEOUT_MS = 5000;
+const MAX_COLUMNS = 40;          // caps column-spam: legit use needs ~21
+const MAX_ADDS_PER_MINUTE = 20;  // generous for real use, chokes automated spam
+
+// Sliding-window rate check using a single script property (bounded size,
+// since it only ever holds up to MAX_ADDS_PER_MINUTE timestamps).
+function checkRateLimit_(){
+  const props = PropertiesService.getScriptProperties();
+  const now = Date.now();
+  const windowMs = 60000;
+  let timestamps = [];
+  try{
+    timestamps = JSON.parse(props.getProperty('recentAdds') || '[]');
+  }catch(e){
+    timestamps = [];
+  }
+  timestamps = timestamps.filter(t => now - t < windowMs);
+  if(timestamps.length >= MAX_ADDS_PER_MINUTE){
+    return false;
+  }
+  timestamps.push(now);
+  props.setProperty('recentAdds', JSON.stringify(timestamps));
+  return true;
+}
+
+function getSheet_(){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if(!sheet){
+    sheet = ss.insertSheet(SHEET_NAME);
+    sheet.getRange(1, 1).setValue('ID');
+  }
+  return sheet;
+}
+
+function getHeaders_(sheet){
+  const lastCol = sheet.getLastColumn();
+  if(lastCol === 0){
+    sheet.getRange(1, 1).setValue('ID');
+    return ['ID'];
+  }
+  return sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+}
+
+// Appends a new column for any field name not already a header.
+// Existing rows get a blank cell in the new column; nothing is rewritten.
+function ensureColumns_(sheet, headers, fieldNames){
+  fieldNames.forEach(name => {
+    if(headers.indexOf(name) === -1){
+      sheet.getRange(1, headers.length + 1).setValue(name);
+      headers.push(name);
+    }
+  });
+  return headers;
+}
+
+function jsonOut_(obj){
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e){
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if(lastRow < 2 || lastCol === 0){
+    return jsonOut_([]);
+  }
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  const books = data
+    .map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i]; });
+      return obj;
+    })
+    .filter(b => b.ID); // skip fully blank rows
+  return jsonOut_(books);
+}
+
+function doPost(e){
+  const lock = LockService.getScriptLock();
+  const gotLock = lock.tryLock(LOCK_TIMEOUT_MS);
+  if(!gotLock){
+    return jsonOut_({error: 'Sheet is busy, please try again.'});
+  }
+
+  try{
+    const payload = JSON.parse(e.postData.contents);
+    const sheet = getSheet_();
+    let headers = getHeaders_(sheet);
+
+    if(payload.action === 'add'){
+      if(!checkRateLimit_()){
+        return jsonOut_({error: 'Too many additions too quickly — please wait a moment and try again.'});
+      }
+      const book = payload.book || {};
+      if(!book.ID){
+        book.ID = Utilities.getUuid();
+      }
+      const newFieldNames = Object.keys(book).filter(k => headers.indexOf(k) === -1);
+      if(headers.length + newFieldNames.length > MAX_COLUMNS){
+        return jsonOut_({error: 'This sheet has reached its column limit (' + MAX_COLUMNS + '). Contact the sheet owner.'});
+      }
+      headers = ensureColumns_(sheet, headers, Object.keys(book));
+      const row = headers.map(h => (book[h] !== undefined ? book[h] : ''));
+      sheet.appendRow(row);
+      return jsonOut_({ok: true, id: book.ID});
+    }
+
+    if(payload.action === 'delete'){
+      const idColIndex = headers.indexOf('ID') + 1;
+      const lastRow = sheet.getLastRow();
+      if(idColIndex > 0 && lastRow >= 2){
+        const ids = sheet.getRange(2, idColIndex, lastRow - 1, 1).getValues();
+        for(let i = 0; i < ids.length; i++){
+          if(String(ids[i][0]) === String(payload.id)){
+            sheet.deleteRow(i + 2);
+            break;
+          }
+        }
+      }
+      return jsonOut_({ok: true});
+    }
+
+    if(payload.action === 'clearAll'){
+      const lastRow = sheet.getLastRow();
+      if(lastRow >= 2){
+        sheet.deleteRows(2, lastRow - 1);
+      }
+      return jsonOut_({ok: true});
+    }
+
+    return jsonOut_({error: 'Unknown action: ' + payload.action});
+  } catch(err){
+    return jsonOut_({error: String(err)});
+  } finally {
+    lock.releaseLock();
+  }
+}
+`;
+
+  let books = [];
+
+  // Maps internal field names to the human-readable Sheet column headers
+  // (matches the CSV export headers, so the Sheet reads the same way).
+  const FIELD_MAP = [
+    ['id', 'ID'],
+    ['title', 'Title'],
+    ['author', 'Author'],
+    ['isbn', 'ISBN'],
+    ['format', 'Format'],
+    ['status', 'Status'],
+    ['favourite', 'Favourite'],
+    ['rating', 'Rating'],
+    ['series', 'Series'],
+    ['seriesNum', 'Series #'],
+    ['year', 'Year'],
+    ['source', 'Source'],
+    ['publisher', 'Publisher'],
+    ['pageCount', 'Page Count'],
+    ['language', 'Language'],
+    ['genre', 'Genre'],
+    ['dimensions', 'Dimensions'],
+    ['cover', 'Cover URL'],
+    ['location', 'Location'],
+    ['lent', 'Lent Out'],
+    ['lentTo', 'Lent To'],
+    ['dateAdded', 'Date Added']
+  ];
+
+  function makeId(){
+    return 'b_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function bookToSheetObj(b){
+    const obj = {};
+    FIELD_MAP.forEach(([key, header]) => {
+      let val = b[key];
+      if(key === 'favourite' || key === 'lent') val = val ? 'Yes' : 'No';
+      obj[header] = (val === undefined || val === null) ? '' : val;
+    });
+    return obj;
+  }
+
+  function sheetRowToBook(row){
+    const b = {};
+    FIELD_MAP.forEach(([key, header]) => {
+      const val = row[header];
+      if(key === 'favourite' || key === 'lent'){
+        b[key] = /^yes$/i.test(String(val || ''));
+      } else if(key === 'rating'){
+        b[key] = parseInt(val, 10) || 0;
+      } else {
+        b[key] = (val === undefined || val === null) ? '' : String(val);
+      }
+    });
+    return b;
+  }
+
+  // Plain-text content type avoids a CORS preflight OPTIONS request,
+  // which Apps Script Web Apps don't handle.
+  async function sheetPost(payload){
+    const res = await fetch(SHEET_API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    return data;
+  }
+
+  async function apiAdd(book){
+    return sheetPost({action: 'add', book: bookToSheetObj(book)});
+  }
+  async function apiDelete(id){
+    return sheetPost({action: 'delete', id: id});
+  }
+  async function apiClearAll(){
+    return sheetPost({action: 'clearAll'});
+  }
+
+  async function loadBooksFromSheet(){
+    setStatus('Loading your shared library…');
+    try{
+      const res = await fetch(SHEET_API_URL);
+      const rows = await res.json();
+      if(rows.error) throw new Error(rows.error);
+      books = rows.map(sheetRowToBook).reverse();
+      renderBooks();
+      setStatus('Point the camera at the barcode on the back of the book.');
+    }catch(e){
+      setStatus('Could not load the shared library: ' + (e.message || e), true);
+      renderBooks();
+    }
+  }
 
   const scanToggleBtn = document.getElementById('scan-toggle');
   const videoWrap = document.getElementById('video-wrap');
@@ -630,6 +1030,7 @@
   const bookListEl = document.getElementById('book-list');
   const bookCountEl = document.getElementById('book-count');
   const emptyState = document.getElementById('empty-state');
+  const refreshBtn = document.getElementById('refresh-books');
 
   const exportBtn = document.getElementById('export-csv');
   const importBtn = document.getElementById('import-csv');
@@ -1026,13 +1427,14 @@
 
   cancelEntryBtn.addEventListener('click', closeEntry);
 
-  addBookBtn.addEventListener('click', () => {
+  addBookBtn.addEventListener('click', async () => {
     const title = fTitle.value.trim();
     if(!title){
       fTitle.focus();
       return;
     }
-    books.unshift({
+    const book = {
+      id: makeId(),
       title: title,
       author: fAuthor.value.trim(),
       isbn: fIsbn.value.trim(),
@@ -1054,16 +1456,30 @@
       lent: fLent.checked,
       lentTo: fLent.checked ? fLentTo.value.trim() : '',
       dateAdded: new Date().toISOString().slice(0,10)
-    });
-    saveBooks();
-    renderBooks();
-    closeEntry();
-    setStatus('Added "' + title + '" to your list.', false);
+    };
+    addBookBtn.disabled = true;
+    if(offlineMode){
+      books.unshift(book);
+      unexportedChanges = true;
+      renderBooks();
+      closeEntry();
+      setStatus('Added "' + title + '" — remember to export CSV before closing this tab.', false);
+      addBookBtn.disabled = false;
+      return;
+    }
+    setStatus('Saving "' + title + '"…');
+    try{
+      await apiAdd(book);
+      books.unshift(book);
+      renderBooks();
+      closeEntry();
+      setStatus('Added "' + title + '" to your shared library.', false);
+    }catch(e){
+      setStatus('Could not save to the shared library: ' + (e.message || e), true);
+    }finally{
+      addBookBtn.disabled = false;
+    }
   });
-
-  function saveBooks(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(books));
-  }
 
   function statusBadgeClass(status){
     const s = (status || '').toLowerCase();
@@ -1178,10 +1594,25 @@
       const delBtn = document.createElement('button');
       delBtn.className = 'del-btn';
       delBtn.textContent = 'Remove';
-      delBtn.addEventListener('click', () => {
-        books.splice(idx, 1);
-        saveBooks();
-        renderBooks();
+      delBtn.addEventListener('click', async () => {
+        if(!confirm('Remove "' + b.title + '" from ' + (offlineMode ? 'your list' : 'the shared library') + '?')) return;
+        if(offlineMode){
+          books.splice(idx, 1);
+          unexportedChanges = true;
+          renderBooks();
+          return;
+        }
+        delBtn.disabled = true;
+        delBtn.textContent = 'Removing…';
+        try{
+          await apiDelete(b.id);
+          books.splice(idx, 1);
+          renderBooks();
+        }catch(e){
+          setStatus('Could not remove: ' + (e.message || e), true);
+          delBtn.disabled = false;
+          delBtn.textContent = 'Remove';
+        }
       });
 
       row.appendChild(main);
@@ -1240,16 +1671,34 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  });
-
-  clearBtn.addEventListener('click', () => {
-    if(books.length === 0) return;
-    if(confirm('Remove all ' + books.length + ' book(s) from this list? This cannot be undone.')){
-      books = [];
-      saveBooks();
-      renderBooks();
+    if(offlineMode){
+      unexportedChanges = false;
+      setStatus('Exported. Your list is safe as a CSV — this tab still won\'t save it if you close it.', false);
     }
   });
+
+  clearBtn.addEventListener('click', async () => {
+    if(books.length === 0) return;
+    if(!confirm('Remove all ' + books.length + ' book(s) from ' + (offlineMode ? 'this list' : 'the shared library') + '? This cannot be undone.')) return;
+    if(offlineMode){
+      books = [];
+      unexportedChanges = false; // nothing left worth warning about
+      renderBooks();
+      return;
+    }
+    clearBtn.disabled = true;
+    try{
+      await apiClearAll();
+      books = [];
+      renderBooks();
+    }catch(e){
+      setStatus('Could not clear the shared library: ' + (e.message || e), true);
+    }finally{
+      clearBtn.disabled = false;
+    }
+  });
+
+  refreshBtn.addEventListener('click', loadBooksFromSheet);
 
   // ---- CSV import ----
   function parseCSVRows(text){
@@ -1331,17 +1780,32 @@
     const file = importFileInput.files[0];
     if(!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try{
         const imported = parseBooksCSV(String(reader.result));
         if(imported.length === 0){
           setStatus('No valid rows found in that CSV.', true);
-        } else {
-          books = imported.concat(books);
-          saveBooks();
-          renderBooks();
-          setStatus('Imported ' + imported.length + ' book(s).', false);
+          return;
         }
+        setStatus('Importing ' + imported.length + ' book(s)…');
+        if(offlineMode){
+          imported.forEach(b => { b.id = makeId(); books.unshift(b); });
+          unexportedChanges = true;
+          renderBooks();
+          setStatus('Imported ' + imported.length + ' book(s) — remember to export CSV before closing this tab.', false);
+          return;
+        }
+        let ok = 0;
+        for(const b of imported){
+          b.id = makeId();
+          try{
+            await apiAdd(b);
+            books.unshift(b);
+            ok++;
+          }catch(e){ /* skip this row, keep going */ }
+        }
+        renderBooks();
+        setStatus('Imported ' + ok + ' of ' + imported.length + ' book(s) to the shared library.', ok < imported.length);
       }catch(e){
         setStatus('Import failed: ' + (e.message || e), true);
       }
@@ -1350,7 +1814,117 @@
     importFileInput.value = '';
   });
 
-  renderBooks();
+  // ---- connect / sign-in gate ----
+  const setupCard = document.getElementById('setup-card');
+  const appContent = document.getElementById('app-content');
+  const appFooter = document.getElementById('app-footer');
+  const sheetUrlInput = document.getElementById('sheet-url-input');
+  const saveSheetUrlBtn = document.getElementById('save-sheet-url');
+  const setupStatus = document.getElementById('setup-status');
+  const continueOfflineBtn = document.getElementById('continue-offline');
+  const statusBar = document.getElementById('status-bar');
+  const statusBarText = document.getElementById('status-bar-text');
+  const changeLibraryBtn = document.getElementById('change-library-link');
+  const copyScriptBtn = document.getElementById('copy-script');
+  const scriptBox = document.getElementById('script-box');
+
+  scriptBox.textContent = APPS_SCRIPT_SOURCE;
+
+  let offlineMode = false;
+  let unexportedChanges = false; // drives the close-tab warning in offline mode
+
+  function setSetupStatus(msg, isError){
+    setupStatus.textContent = msg;
+    setupStatus.classList.toggle('error', !!isError);
+  }
+
+  function showSetup(){
+    setupCard.classList.remove('hidden');
+    appContent.classList.add('hidden');
+    appFooter.classList.add('hidden');
+    if(SHEET_API_URL) sheetUrlInput.value = SHEET_API_URL;
+  }
+
+  function showApp(){
+    setupCard.classList.add('hidden');
+    appContent.classList.remove('hidden');
+    appFooter.classList.remove('hidden');
+    if(offlineMode){
+      statusBar.classList.remove('connected-bar');
+      statusBar.classList.add('offline-bar');
+      statusBarText.textContent = 'Working offline — not saved until you export CSV';
+      changeLibraryBtn.textContent = 'Connect a library';
+      refreshBtn.classList.add('hidden');
+    } else {
+      statusBar.classList.remove('offline-bar');
+      statusBar.classList.add('connected-bar');
+      statusBarText.textContent = 'Connected to your shared library';
+      changeLibraryBtn.textContent = 'Change';
+      refreshBtn.classList.remove('hidden');
+    }
+  }
+
+  saveSheetUrlBtn.addEventListener('click', () => {
+    const url = sheetUrlInput.value.trim();
+    if(!/^https:\/\/script\.google(usercontent)?\.com\/macros\/s\/.+\/exec$/.test(url)){
+      setSetupStatus('That doesn\'t look like an Apps Script Web App URL — it should end in /exec.', true);
+      return;
+    }
+    SHEET_API_URL = url;
+    localStorage.setItem(SHEET_URL_KEY, url);
+    offlineMode = false;
+    unexportedChanges = false;
+    setSetupStatus('');
+    showApp();
+    loadBooksFromSheet();
+  });
+
+  continueOfflineBtn.addEventListener('click', () => {
+    offlineMode = true;
+    unexportedChanges = false;
+    books = [];
+    setSetupStatus('');
+    showApp();
+    renderBooks();
+    setStatus('Working offline — export CSV before closing this tab to keep anything you add.', false);
+  });
+
+  changeLibraryBtn.addEventListener('click', () => {
+    if(offlineMode && unexportedChanges && books.length > 0){
+      const proceed = confirm('You have unsaved books that only exist in this tab. Leaving without exporting will lose them. Continue anyway?');
+      if(!proceed) return;
+    }
+    showSetup();
+  });
+
+  copyScriptBtn.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(APPS_SCRIPT_SOURCE);
+      copyScriptBtn.textContent = 'Copied!';
+    }catch(e){
+      const range = document.createRange();
+      range.selectNodeContents(scriptBox);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      copyScriptBtn.textContent = 'Selected — copy manually';
+    }
+    setTimeout(() => { copyScriptBtn.textContent = 'Copy script to clipboard'; }, 2200);
+  });
+
+  window.addEventListener('beforeunload', (e) => {
+    if(offlineMode && unexportedChanges && books.length > 0){
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  if(SHEET_API_URL){
+    showApp();
+    loadBooksFromSheet();
+  } else {
+    showSetup();
+  }
 })();
 </script>
 </body>
