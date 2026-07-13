@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Spine — Book Scanner</title>
+<title>Book Nook — Book Scanner</title>
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU3BpbmUiLCJzaG9ydF9uYW1lIjoiU3BpbmUiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI0YzRUZFNCIsInRoZW1lX2NvbG9yIjoiIzMzNEEzOSJ9">
 <style>
   :root{
@@ -250,7 +250,7 @@
 <body>
 
 <header>
-  <h1>Spine</h1>
+  <h1>Book Nook</h1>
   <p>Scan · Log · Export to Notion</p>
 </header>
 
@@ -312,7 +312,7 @@
 (function(){
   "use strict";
 
-  const STORAGE_KEY = 'spine-book-list';
+  const STORAGE_KEY = 'book-nook-list';
   let books = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 
   const scanToggleBtn = document.getElementById('scan-toggle');
