@@ -264,6 +264,32 @@
     gap:10px;
   }
   .book-row:last-child{border-bottom:none;}
+  .book-row-main{display:flex; gap:10px; flex:1; min-width:0;}
+  .book-cover{
+    width:38px;
+    height:56px;
+    object-fit:cover;
+    border-radius:3px;
+    border:1px solid var(--line);
+    flex-shrink:0;
+    background:var(--paper-dim);
+  }
+  .cover-preview-wrap{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-top:6px;
+  }
+  .cover-preview{
+    width:48px;
+    height:70px;
+    object-fit:cover;
+    border-radius:3px;
+    border:1px solid var(--line);
+    background:var(--paper-dim);
+    display:none;
+  }
+  .cover-preview.has-image{display:block;}
   .book-title{font-weight:600; font-size:15px; line-height:1.3;}
   .book-title .fav-star{color:var(--gold); margin-left:4px;}
   .book-author{font-size:13px; color:#6B6558; margin-top:2px;}
@@ -366,6 +392,7 @@
       <div class="field" id="wrap-format">
         <label for="f-format">Format</label>
         <select id="f-format">
+          <option value="">Select format…</option>
           <option value="Paperback">Paperback</option>
           <option value="Hardcover">Hardcover</option>
           <option value="__custom__">Custom…</option>
@@ -374,6 +401,7 @@
       <div class="field" id="wrap-status">
         <label for="f-status">Status</label>
         <select id="f-status">
+          <option value="">Select status…</option>
           <option value="TBR">TBR</option>
           <option value="Reading">Reading</option>
           <option value="Read">Read</option>
@@ -385,12 +413,61 @@
     <div class="field" id="wrap-source">
       <label for="f-source">Source</label>
       <select id="f-source">
+        <option value="">Select source…</option>
         <option value="Bookshop">Bookshop</option>
         <option value="Op shop">Op shop</option>
         <option value="Fair">Fair</option>
         <option value="Gift">Gift</option>
         <option value="__custom__">Custom…</option>
       </select>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="f-publisher">Publisher</label>
+        <input type="text" id="f-publisher">
+      </div>
+      <div class="field">
+        <label for="f-pagecount">Page count</label>
+        <input type="text" id="f-pagecount" inputmode="numeric">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="f-language">Language</label>
+        <input type="text" id="f-language">
+      </div>
+      <div class="field" id="wrap-genre">
+        <label for="f-genre">Genre</label>
+        <select id="f-genre">
+          <option value="">Select genre…</option>
+          <option value="Fiction">Fiction</option>
+          <option value="Non-fiction">Non-fiction</option>
+          <option value="Fantasy">Fantasy</option>
+          <option value="Science Fiction">Science Fiction</option>
+          <option value="Mystery/Thriller">Mystery/Thriller</option>
+          <option value="Romance">Romance</option>
+          <option value="Historical Fiction">Historical Fiction</option>
+          <option value="Biography/Memoir">Biography/Memoir</option>
+          <option value="Poetry">Poetry</option>
+          <option value="Young Adult">Young Adult</option>
+          <option value="__custom__">Custom…</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="f-dimensions">Physical dimensions</label>
+      <input type="text" id="f-dimensions" placeholder="often unavailable">
+    </div>
+
+    <div class="field">
+      <label for="f-cover">Cover image URL</label>
+      <div class="cover-preview-wrap">
+        <input type="text" id="f-cover" style="flex:1;">
+        <img id="cover-preview" class="cover-preview" alt="Cover preview">
+      </div>
     </div>
 
     <div class="toggle-row">
@@ -439,6 +516,12 @@
   const fAuthor = document.getElementById('f-author');
   const fIsbn = document.getElementById('f-isbn');
   const fYear = document.getElementById('f-year');
+  const fPublisher = document.getElementById('f-publisher');
+  const fPageCount = document.getElementById('f-pagecount');
+  const fLanguage = document.getElementById('f-language');
+  const fDimensions = document.getElementById('f-dimensions');
+  const fCover = document.getElementById('f-cover');
+  const coverPreview = document.getElementById('cover-preview');
   const fFavourite = document.getElementById('f-favourite');
   const addBookBtn = document.getElementById('add-book');
   const cancelEntryBtn = document.getElementById('cancel-entry');
@@ -517,6 +600,40 @@
   const formatField = makeCustomSelect('wrap-format', 'f-format');
   const statusField = makeCustomSelect('wrap-status', 'f-status');
   const sourceField = makeCustomSelect('wrap-source', 'f-source');
+  const genreField = makeCustomSelect('wrap-genre', 'f-genre');
+
+  const GENRE_KEYWORDS = [
+    ['Fantasy', ['fantasy']],
+    ['Science Fiction', ['science fiction', 'sci-fi']],
+    ['Mystery/Thriller', ['mystery', 'thriller', 'detective']],
+    ['Romance', ['romance']],
+    ['Historical Fiction', ['historical fiction']],
+    ['Biography/Memoir', ['biography', 'memoir', 'autobiography']],
+    ['Poetry', ['poetry', 'poems']],
+    ['Young Adult', ['young adult', 'juvenile fiction']],
+    ['Non-fiction', ['nonfiction', 'non-fiction']],
+    ['Fiction', ['fiction']]
+  ];
+
+  function guessGenre(subjects){
+    if(!subjects || !subjects.length) return '';
+    const text = subjects.join(' ').toLowerCase();
+    for(const [genre, keywords] of GENRE_KEYWORDS){
+      if(keywords.some(k => text.indexOf(k) !== -1)) return genre;
+    }
+    return '';
+  }
+
+  function updateCoverPreview(url){
+    if(url){
+      coverPreview.src = url;
+      coverPreview.classList.add('has-image');
+    } else {
+      coverPreview.src = '';
+      coverPreview.classList.remove('has-image');
+    }
+  }
+  fCover.addEventListener('input', () => updateCoverPreview(fCover.value.trim()));
 
   function setStatus(msg, isError){
     scanStatus.textContent = msg;
@@ -528,10 +645,17 @@
     fAuthor.value = (data && data.author) || '';
     fIsbn.value = (data && data.isbn) || '';
     fYear.value = (data && data.year) || '';
+    fPublisher.value = (data && data.publisher) || '';
+    fPageCount.value = (data && data.pageCount) || '';
+    fLanguage.value = (data && data.language) || '';
+    fDimensions.value = (data && data.dimensions) || '';
+    fCover.value = (data && data.cover) || '';
+    updateCoverPreview((data && data.cover) || '');
     fFavourite.checked = false;
-    formatField.setValue('Paperback');
-    statusField.setValue('TBR');
+    formatField.setValue((data && data.format) || null);
+    statusField.setValue((data && data.status) || null);
     sourceField.setValue(null);
+    genreField.setValue((data && data.genre) || null);
     entryCard.classList.remove('hidden');
     titleResultsEl.classList.add('hidden');
     titleResultsEl.innerHTML = '';
@@ -550,18 +674,25 @@
 
   async function lookupISBN(isbn){
     setStatus('Looking up ' + isbn + '…');
+    let found = false;
+    const result = {isbn: isbn};
+
     try{
       const res = await fetch('https://openlibrary.org/api/books?bibkeys=ISBN:' + isbn + '&format=json&jscmd=data');
       const data = await res.json();
       const key = 'ISBN:' + isbn;
       if(data[key] && data[key].title){
+        found = true;
         const rec = data[key];
-        return {
-          title: rec.title || '',
-          author: (rec.authors || []).map(a => a.name).join(', '),
-          isbn: isbn,
-          year: extractYear(rec.publish_date)
-        };
+        result.title = rec.title || '';
+        result.author = (rec.authors || []).map(a => a.name).join(', ');
+        result.year = extractYear(rec.publish_date);
+        result.publisher = (rec.publishers || []).map(p => p.name).join(', ');
+        result.pageCount = rec.number_of_pages ? String(rec.number_of_pages) : '';
+        result.dimensions = rec.physical_dimensions || '';
+        result.cover = (rec.cover && (rec.cover.large || rec.cover.medium || rec.cover.small)) || '';
+        const subjects = (rec.subjects || []).map(s => s.name || s);
+        result.genre = guessGenre(subjects);
       }
     }catch(e){ /* fall through to Google Books */ }
 
@@ -570,16 +701,19 @@
       const data = await res.json();
       if(data.items && data.items.length){
         const info = data.items[0].volumeInfo;
-        return {
-          title: info.title || '',
-          author: (info.authors || []).join(', '),
-          isbn: isbn,
-          year: extractYear(info.publishedDate)
-        };
+        found = true;
+        if(!result.title) result.title = info.title || '';
+        if(!result.author) result.author = (info.authors || []).join(', ');
+        if(!result.year) result.year = extractYear(info.publishedDate);
+        if(!result.publisher) result.publisher = info.publisher || '';
+        if(!result.pageCount) result.pageCount = info.pageCount ? String(info.pageCount) : '';
+        if(!result.cover) result.cover = (info.imageLinks && (info.imageLinks.thumbnail || info.imageLinks.smallThumbnail)) || '';
+        result.language = info.language || '';
+        if(!result.genre) result.genre = guessGenre(info.categories || []);
       }
     }catch(e){ /* no luck */ }
 
-    return null;
+    return found ? result : null;
   }
 
   async function handleScannedCode(isbn){
@@ -721,6 +855,12 @@
       author: fAuthor.value.trim(),
       isbn: fIsbn.value.trim(),
       year: fYear.value.trim(),
+      publisher: fPublisher.value.trim(),
+      pageCount: fPageCount.value.trim(),
+      language: fLanguage.value.trim(),
+      dimensions: fDimensions.value.trim(),
+      cover: fCover.value.trim(),
+      genre: genreField.getValue(),
       format: formatField.getValue(),
       status: statusField.getValue(),
       source: sourceField.getValue(),
@@ -753,7 +893,19 @@
       const row = document.createElement('div');
       row.className = 'book-row';
 
+      const main = document.createElement('div');
+      main.className = 'book-row-main';
+
+      if(b.cover){
+        const img = document.createElement('img');
+        img.className = 'book-cover';
+        img.src = b.cover;
+        img.alt = '';
+        main.appendChild(img);
+      }
+
       const left = document.createElement('div');
+      left.style.minWidth = '0';
       const titleEl = document.createElement('div');
       titleEl.className = 'book-title';
       titleEl.textContent = b.title;
@@ -771,6 +923,8 @@
       const metaParts = [];
       if(b.isbn) metaParts.push(b.isbn);
       if(b.year) metaParts.push(b.year);
+      if(b.publisher) metaParts.push(b.publisher);
+      if(b.pageCount) metaParts.push(b.pageCount + 'pp');
       metaParts.push(b.dateAdded);
       metaEl.textContent = metaParts.join(' · ');
 
@@ -794,11 +948,18 @@
         bd.textContent = b.source;
         badges.appendChild(bd);
       }
+      if(b.genre){
+        const bd = document.createElement('span');
+        bd.className = 'badge badge-format';
+        bd.textContent = b.genre;
+        badges.appendChild(bd);
+      }
 
       left.appendChild(titleEl);
       left.appendChild(authorEl);
       left.appendChild(metaEl);
       left.appendChild(badges);
+      main.appendChild(left);
 
       const delBtn = document.createElement('button');
       delBtn.className = 'del-btn';
@@ -809,7 +970,7 @@
         renderBooks();
       });
 
-      row.appendChild(left);
+      row.appendChild(main);
       row.appendChild(delBtn);
       bookListEl.appendChild(row);
     });
@@ -828,7 +989,7 @@
       setStatus('Nothing to export yet.', true);
       return;
     }
-    const header = ['Title','Author','ISBN','Format','Status','Favourite','Year','Source','Date Added'];
+    const header = ['Title','Author','ISBN','Format','Status','Favourite','Year','Source','Publisher','Page Count','Language','Genre','Dimensions','Cover URL','Date Added'];
     const lines = [header.join(',')];
     books.forEach(b => {
       lines.push([
@@ -840,6 +1001,12 @@
         b.favourite ? 'Yes' : 'No',
         csvEscape(b.year),
         csvEscape(b.source),
+        csvEscape(b.publisher),
+        csvEscape(b.pageCount),
+        csvEscape(b.language),
+        csvEscape(b.genre),
+        csvEscape(b.dimensions),
+        csvEscape(b.cover),
         csvEscape(b.dateAdded)
       ].join(','));
     });
