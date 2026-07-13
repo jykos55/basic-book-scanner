@@ -306,8 +306,11 @@
   .badge-tbr{background:#EFE1C2; color:#7A5C1E;}
   .badge-reading{background:#DDE6EF; color:#2E4E6E;}
   .badge-read{background:#D9E6DA; color:var(--spine-green-dark);}
+  .badge-dnf{background:#F0DAD2; color:var(--danger);}
   .badge-format{background:var(--paper-dim); color:#6B6558;}
   .badge-source{background:#EFE7DA; color:#8A5A3B;}
+  .badge-lent{background:#F0DAD2; color:var(--danger);}
+  .badge-rating{background:#F5EAC9; color:#7A5C1E;}
   .del-btn{
     background:none;
     border:none;
@@ -316,6 +319,54 @@
     padding:4px 6px;
     text-decoration:underline;
     font-weight:400;
+  }
+
+  .star-rating{
+    display:flex;
+    gap:6px;
+    font-size:26px;
+    line-height:1;
+  }
+  .star-rating span{
+    cursor:pointer;
+    color:var(--line);
+    user-select:none;
+  }
+  .star-rating span.filled{color:var(--gold);}
+
+  .shelf-status{
+    font-size:13px;
+    color:#6B6558;
+    margin-bottom:8px;
+  }
+  .shelf-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    grid-auto-rows:30px;
+    gap:4px;
+    background:var(--rust-dark);
+    padding:8px;
+    border-radius:5px;
+  }
+  .shelf-cell{
+    background:var(--paper-dim);
+    border:1px solid var(--line);
+    border-radius:3px;
+    cursor:pointer;
+    padding:0;
+  }
+  .shelf-cell.selected{
+    background:var(--gold);
+    border-color:var(--gold);
+  }
+  .shelf-clear{
+    margin-top:8px;
+    background:none;
+    border:none;
+    color:var(--rust);
+    font-size:12px;
+    text-decoration:underline;
+    padding:2px 0;
   }
 
   .empty-state{
@@ -332,8 +383,11 @@
     border-top:1px solid var(--line);
     padding:10px 16px calc(10px + env(safe-area-inset-bottom));
     display:flex;
-    gap:10px;
+    gap:8px;
+    flex-wrap:wrap;
   }
+  footer.export-bar button{padding:12px 14px;}
+  footer.export-bar .btn-block{flex:1 1 auto; min-width:140px;}
   .hidden{display:none !important;}
 </style>
 </head>
@@ -405,6 +459,7 @@
           <option value="TBR">TBR</option>
           <option value="Reading">Reading</option>
           <option value="Read">Read</option>
+          <option value="DNF">DNF</option>
           <option value="__custom__">Custom…</option>
         </select>
       </div>
@@ -470,8 +525,42 @@
       </div>
     </div>
 
+    <div class="field">
+      <label>Rating</label>
+      <div class="star-rating" id="f-rating" data-value="0">
+        <span data-star="1">★</span>
+        <span data-star="2">★</span>
+        <span data-star="3">★</span>
+        <span data-star="4">★</span>
+        <span data-star="5">★</span>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="f-series">Series</label>
+        <input type="text" id="f-series">
+      </div>
+      <div class="field">
+        <label for="f-series-num">Series #</label>
+        <input type="text" id="f-series-num" inputmode="numeric">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Shelf location</label>
+      <div class="shelf-status" id="shelf-status">No location set</div>
+      <div class="shelf-grid" id="shelf-grid"></div>
+      <button type="button" class="shelf-clear" id="shelf-clear">Clear location</button>
+    </div>
+
     <div class="toggle-row">
       <label class="toggle"><input type="checkbox" id="f-favourite"> Favourite</label>
+      <label class="toggle"><input type="checkbox" id="f-lent"> Lent out</label>
+    </div>
+    <div class="field hidden" id="wrap-lent-to">
+      <label for="f-lent-to">Lent to</label>
+      <input type="text" id="f-lent-to">
     </div>
 
     <div class="entry-actions">
@@ -490,6 +579,8 @@
 
 <footer class="export-bar">
   <button id="export-csv" class="btn-secondary btn-block">Export CSV for Notion</button>
+  <button id="import-csv" class="btn-secondary">Import CSV</button>
+  <input type="file" id="import-file" accept=".csv,text/csv" class="hidden">
   <button id="clear-all" class="btn-ghost" style="color:var(--danger); border-color:var(--danger);">Clear</button>
 </footer>
 
@@ -523,6 +614,16 @@
   const fCover = document.getElementById('f-cover');
   const coverPreview = document.getElementById('cover-preview');
   const fFavourite = document.getElementById('f-favourite');
+  const fLent = document.getElementById('f-lent');
+  const wrapLentTo = document.getElementById('wrap-lent-to');
+  const fLentTo = document.getElementById('f-lent-to');
+  const fSeries = document.getElementById('f-series');
+  const fSeriesNum = document.getElementById('f-series-num');
+  const ratingWidget = document.getElementById('f-rating');
+  const ratingStars = Array.from(ratingWidget.querySelectorAll('span'));
+  const shelfStatusEl = document.getElementById('shelf-status');
+  const shelfGridEl = document.getElementById('shelf-grid');
+  const shelfClearBtn = document.getElementById('shelf-clear');
   const addBookBtn = document.getElementById('add-book');
   const cancelEntryBtn = document.getElementById('cancel-entry');
 
@@ -531,6 +632,8 @@
   const emptyState = document.getElementById('empty-state');
 
   const exportBtn = document.getElementById('export-csv');
+  const importBtn = document.getElementById('import-csv');
+  const importFileInput = document.getElementById('import-file');
   const clearBtn = document.getElementById('clear-all');
 
   let codeReader = null;
@@ -635,6 +738,63 @@
   }
   fCover.addEventListener('input', () => updateCoverPreview(fCover.value.trim()));
 
+  // ---- rating widget ----
+  let currentRating = 0;
+  function setRating(val){
+    currentRating = val;
+    ratingWidget.dataset.value = String(val);
+    ratingStars.forEach(s => {
+      s.classList.toggle('filled', Number(s.dataset.star) <= val);
+    });
+  }
+  ratingStars.forEach(s => {
+    s.addEventListener('click', () => {
+      const val = Number(s.dataset.star);
+      setRating(val === currentRating ? 0 : val);
+    });
+  });
+
+  // ---- lent-out toggle ----
+  fLent.addEventListener('change', () => {
+    wrapLentTo.classList.toggle('hidden', !fLent.checked);
+    if(!fLent.checked) fLentTo.value = '';
+  });
+
+  // ---- shelf location: 3 bays wide, 7 shelves tall ----
+  let selectedShelf = '';
+  function buildShelfGrid(){
+    shelfGridEl.innerHTML = '';
+    for(let row = 1; row <= 7; row++){
+      for(let col = 1; col <= 3; col++){
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'shelf-cell';
+        const value = 'R' + row + 'B' + col;
+        cell.dataset.value = value;
+        cell.title = 'Shelf ' + row + ', Bay ' + col;
+        cell.addEventListener('click', () => selectShelf(value));
+        shelfGridEl.appendChild(cell);
+      }
+    }
+  }
+  function selectShelf(value){
+    selectedShelf = (selectedShelf === value) ? '' : value;
+    Array.from(shelfGridEl.children).forEach(cell => {
+      cell.classList.toggle('selected', cell.dataset.value === selectedShelf);
+    });
+    updateShelfStatus();
+  }
+  function shelfLabel(value){
+    if(!value) return '';
+    const m = value.match(/^R(\d+)B(\d+)$/);
+    return m ? ('Shelf ' + m[1] + ', Bay ' + m[2]) : '';
+  }
+  function updateShelfStatus(){
+    shelfStatusEl.textContent = selectedShelf ? shelfLabel(selectedShelf) : 'No location set';
+  }
+  buildShelfGrid();
+  shelfClearBtn.addEventListener('click', () => selectShelf(''));
+
   function setStatus(msg, isError){
     scanStatus.textContent = msg;
     scanStatus.classList.toggle('error', !!isError);
@@ -652,6 +812,13 @@
     fCover.value = (data && data.cover) || '';
     updateCoverPreview((data && data.cover) || '');
     fFavourite.checked = false;
+    fLent.checked = false;
+    wrapLentTo.classList.add('hidden');
+    fLentTo.value = '';
+    fSeries.value = '';
+    fSeriesNum.value = '';
+    setRating(0);
+    selectShelf('');
     formatField.setValue((data && data.format) || null);
     statusField.setValue((data && data.status) || null);
     sourceField.setValue(null);
@@ -716,9 +883,24 @@
     return found ? result : null;
   }
 
+  function findDuplicate(isbn){
+    if(!isbn) return null;
+    return books.find(b => b.isbn && b.isbn === isbn) || null;
+  }
+
   async function handleScannedCode(isbn){
     isbn = isbn.replace(/[^0-9Xx]/g, '');
     stopScanning();
+
+    const dup = findDuplicate(isbn);
+    if(dup){
+      const proceed = confirm('You already have "' + dup.title + '" in your list (added ' + dup.dateAdded + '). Add it again anyway?');
+      if(!proceed){
+        setStatus('Skipped — already in your library.', false);
+        return;
+      }
+    }
+
     const result = await lookupISBN(isbn);
     if(result){
       setStatus('Found: ' + result.title, false);
@@ -865,6 +1047,12 @@
       status: statusField.getValue(),
       source: sourceField.getValue(),
       favourite: fFavourite.checked,
+      rating: currentRating,
+      series: fSeries.value.trim(),
+      seriesNum: fSeriesNum.value.trim(),
+      location: selectedShelf,
+      lent: fLent.checked,
+      lentTo: fLent.checked ? fLentTo.value.trim() : '',
       dateAdded: new Date().toISOString().slice(0,10)
     });
     saveBooks();
@@ -881,7 +1069,14 @@
     const s = (status || '').toLowerCase();
     if(s === 'reading') return 'badge-reading';
     if(s === 'read') return 'badge-read';
+    if(s === 'dnf') return 'badge-dnf';
     return 'badge-tbr';
+  }
+
+  function shelfLabelShort(value){
+    if(!value) return '';
+    const m = value.match(/^R(\d+)B(\d+)$/);
+    return m ? ('Shelf ' + m[1] + '.' + m[2]) : '';
   }
 
   function renderBooks(){
@@ -925,6 +1120,7 @@
       if(b.year) metaParts.push(b.year);
       if(b.publisher) metaParts.push(b.publisher);
       if(b.pageCount) metaParts.push(b.pageCount + 'pp');
+      if(b.location) metaParts.push(shelfLabelShort(b.location));
       metaParts.push(b.dateAdded);
       metaEl.textContent = metaParts.join(' · ');
 
@@ -952,6 +1148,24 @@
         const bd = document.createElement('span');
         bd.className = 'badge badge-format';
         bd.textContent = b.genre;
+        badges.appendChild(bd);
+      }
+      if(b.series){
+        const bd = document.createElement('span');
+        bd.className = 'badge badge-format';
+        bd.textContent = b.series + (b.seriesNum ? ' #' + b.seriesNum : '');
+        badges.appendChild(bd);
+      }
+      if(b.lent){
+        const bd = document.createElement('span');
+        bd.className = 'badge badge-lent';
+        bd.textContent = 'Lent' + (b.lentTo ? ' → ' + b.lentTo : '');
+        badges.appendChild(bd);
+      }
+      if(b.rating){
+        const bd = document.createElement('span');
+        bd.className = 'badge badge-rating';
+        bd.textContent = '★'.repeat(b.rating);
         badges.appendChild(bd);
       }
 
@@ -989,7 +1203,7 @@
       setStatus('Nothing to export yet.', true);
       return;
     }
-    const header = ['Title','Author','ISBN','Format','Status','Favourite','Year','Source','Publisher','Page Count','Language','Genre','Dimensions','Cover URL','Date Added'];
+    const header = ['Title','Author','ISBN','Format','Status','Favourite','Rating','Series','Series #','Year','Source','Publisher','Page Count','Language','Genre','Dimensions','Cover URL','Location','Lent Out','Lent To','Date Added'];
     const lines = [header.join(',')];
     books.forEach(b => {
       lines.push([
@@ -999,6 +1213,9 @@
         csvEscape(b.format),
         csvEscape(b.status),
         b.favourite ? 'Yes' : 'No',
+        csvEscape(b.rating || ''),
+        csvEscape(b.series),
+        csvEscape(b.seriesNum),
         csvEscape(b.year),
         csvEscape(b.source),
         csvEscape(b.publisher),
@@ -1007,6 +1224,9 @@
         csvEscape(b.genre),
         csvEscape(b.dimensions),
         csvEscape(b.cover),
+        csvEscape(b.location),
+        b.lent ? 'Yes' : 'No',
+        csvEscape(b.lentTo),
         csvEscape(b.dateAdded)
       ].join(','));
     });
@@ -1029,6 +1249,105 @@
       saveBooks();
       renderBooks();
     }
+  });
+
+  // ---- CSV import ----
+  function parseCSVRows(text){
+    const rows = [];
+    let row = [], field = '', inQuotes = false;
+    for(let i = 0; i < text.length; i++){
+      const c = text[i];
+      if(inQuotes){
+        if(c === '"'){
+          if(text[i+1] === '"'){ field += '"'; i++; }
+          else inQuotes = false;
+        } else field += c;
+      } else {
+        if(c === '"') inQuotes = true;
+        else if(c === ','){ row.push(field); field = ''; }
+        else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+        else if(c === '\r'){ /* skip, \n handles the line break */ }
+        else field += c;
+      }
+    }
+    if(field.length || row.length){ row.push(field); rows.push(row); }
+    return rows.filter(r => !(r.length === 1 && r[0].trim() === ''));
+  }
+
+  function parseBooksCSV(text){
+    const rows = parseCSVRows(text);
+    if(rows.length < 2) return [];
+    const headerRow = rows[0].map(h => h.trim().toLowerCase());
+    const idx = (name) => headerRow.indexOf(name);
+    const cols = {
+      title: idx('title'), author: idx('author'), isbn: idx('isbn'),
+      format: idx('format'), status: idx('status'), favourite: idx('favourite'),
+      rating: idx('rating'), series: idx('series'), seriesNum: idx('series #'),
+      year: idx('year'), source: idx('source'), publisher: idx('publisher'),
+      pageCount: idx('page count'), language: idx('language'), genre: idx('genre'),
+      dimensions: idx('dimensions'), cover: idx('cover url'), location: idx('location'),
+      lent: idx('lent out'), lentTo: idx('lent to'), dateAdded: idx('date added')
+    };
+    const get = (r, key) => {
+      const i = cols[key];
+      return (i !== -1 && r[i] !== undefined) ? r[i].trim() : '';
+    };
+
+    const results = [];
+    for(let i = 1; i < rows.length; i++){
+      const r = rows[i];
+      const title = get(r, 'title');
+      if(!title) continue;
+      results.push({
+        title: title,
+        author: get(r, 'author'),
+        isbn: get(r, 'isbn'),
+        format: get(r, 'format'),
+        status: get(r, 'status'),
+        favourite: /^yes$/i.test(get(r, 'favourite')),
+        rating: parseInt(get(r, 'rating'), 10) || 0,
+        series: get(r, 'series'),
+        seriesNum: get(r, 'seriesNum'),
+        year: get(r, 'year'),
+        source: get(r, 'source'),
+        publisher: get(r, 'publisher'),
+        pageCount: get(r, 'pageCount'),
+        language: get(r, 'language'),
+        genre: get(r, 'genre'),
+        dimensions: get(r, 'dimensions'),
+        cover: get(r, 'cover'),
+        location: get(r, 'location'),
+        lent: /^yes$/i.test(get(r, 'lent')),
+        lentTo: get(r, 'lentTo'),
+        dateAdded: get(r, 'dateAdded') || new Date().toISOString().slice(0,10)
+      });
+    }
+    return results;
+  }
+
+  importBtn.addEventListener('click', () => importFileInput.click());
+
+  importFileInput.addEventListener('change', () => {
+    const file = importFileInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const imported = parseBooksCSV(String(reader.result));
+        if(imported.length === 0){
+          setStatus('No valid rows found in that CSV.', true);
+        } else {
+          books = imported.concat(books);
+          saveBooks();
+          renderBooks();
+          setStatus('Imported ' + imported.length + ' book(s).', false);
+        }
+      }catch(e){
+        setStatus('Import failed: ' + (e.message || e), true);
+      }
+    };
+    reader.readAsText(file);
+    importFileInput.value = '';
   });
 
   renderBooks();
